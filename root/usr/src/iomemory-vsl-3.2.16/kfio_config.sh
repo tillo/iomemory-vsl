@@ -91,6 +91,7 @@ KFIOC_X_VOID_ADD_DISK
 KFIOC_X_DISK_HAS_OPEN_MUTEX
 KFIOC_X_BLK_MQ_F_SHOULD_MERGE
 KFIOC_X_HAVE_STRSCPY_PAD
+KFIOC_X_FILLDIR_RETURNS_BOOL
 "
 
 
@@ -157,6 +158,33 @@ void kfioc_have_strscpy_pad(void)
 {
     char dst[8];
     strscpy_pad(dst, "test", sizeof(dst));
+}
+
+'
+    kfioc_test "$test_code" "$test_flag" 1 -Werror
+}
+
+# flag:            KFIOC_X_FILLDIR_RETURNS_BOOL
+# usage:           1   Kernels where a filldir_t actor returns bool
+#                  0   Kernels where it returns int
+# kernel_version:  6.1
+#                  commit 25885a35a720, "Change calling conventions for
+#                  filldir_t"
+KFIOC_X_FILLDIR_RETURNS_BOOL()
+{
+    local test_flag="$1"
+    local test_code='
+#include <linux/fs.h>
+static bool kfioc_filldir_actor(struct dir_context *ctx, const char *name,
+                                int len, loff_t off, u64 ino, unsigned int d_type)
+{
+    return true;
+}
+void kfioc_filldir_returns_bool(void);
+void kfioc_filldir_returns_bool(void)
+{
+    struct dir_context ctx = { .actor = kfioc_filldir_actor };
+    (void)ctx;
 }
 
 '

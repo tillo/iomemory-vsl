@@ -195,7 +195,6 @@ int fusion_create_control_device(struct fusion_nand_device *nand_dev)
 
     misc = (struct miscdevice *)fusion_nand_get_miscdev(nand_dev);
 
-    /* Same name unless this driver is sharing the namespace with another. */
     dev_name = fio_enum_control_name(fusion_nand_get_devnum(nand_dev),
                                      fusion_nand_get_dev_name(nand_dev));
 

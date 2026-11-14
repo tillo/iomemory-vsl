@@ -414,7 +414,6 @@ int kfio_expose_disk(kfio_disk_t *dp, char *name, int major, int disk_index,
 
     fio_bdev_ops.owner = THIS_MODULE;
 
-    /* Same name unless this driver is sharing the namespace with another. */
     disk_name = fio_enum_block_name(disk_index, name, name_buf, sizeof(name_buf));
 
     KFIO_STRSCPY_PAD(gd->disk_name, disk_name, 32);

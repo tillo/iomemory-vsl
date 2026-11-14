@@ -1,18 +1,3 @@
-/*
-  Device enumeration for a namespace shared with another ioMemory driver.
-
-  Every generation of this driver enumerates its cards from zero and registers
-  them under the same names: /proc/<root>/fct<n>, /dev/fct<n> and /dev/fio<a>.
-  Two generations loaded at once therefore collide on the first card, and the
-  second driver to load fails to attach it.
-
-  The numbers are generated inside the prebuilt driver object, which hands the
-  finished names to this porting layer.  This file is the one place that
-  renumbers them, so that the driver occupies a free range of the shared
-  namespace instead of insisting on starting at zero.  The names themselves are
-  never changed: userspace tools keep working unmodified, and the range in use
-  is printed at load time rather than having to be inferred.
- */
 #ifndef __FIO_PORT_COMMON_LINUX_KENUM_H__
 #define __FIO_PORT_COMMON_LINUX_KENUM_H__
 

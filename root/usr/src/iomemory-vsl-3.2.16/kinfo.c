@@ -45,12 +45,9 @@ static fusion_file_operations_t kfio_info_seqf_fops;
 static fusion_seq_operations_t  kfio_info_linux_seq_ops;
 
 /*
- * The top level directory carries the same name in every generation of this
- * driver, so only the first one to load can create it.  When it is already
- * there we borrow it instead of failing to attach.  procfs has no way to look
- * up a directory this module did not create, so entries below a borrowed one
- * are created by path with a NULL parent, which resolves the existing
- * directory.  This marks the node that is in that state.
+ * Marks a top level directory borrowed from another generation of the driver.
+ * procfs cannot look up a directory this module did not create, so entries
+ * below it are created and removed by path with a NULL parent.
  */
 #define FIO_PROC_ROOT_SHARED   ((fusion_proc_dir_entry *)1UL)
 
@@ -478,11 +475,6 @@ int kfio_info_os_create_node(kfio_info_node_t *parent, kfio_info_node_t *nodep)
         snprintf(path_buf, sizeof(path_buf), "/proc/%s", fio_proc_root_name);
         if (fio_enum_path_exists(path_buf))
         {
-            /*
-             * Another ioMemory driver is loaded and owns the directory.  Every
-             * device number in it is one of its own, because none of ours have
-             * registered yet, so enumerate past them and share the directory.
-             */
             fio_enum_resolve_base(fio_proc_root_name, 1);
             kfio_info_node_set_os_private(nodep, FIO_PROC_ROOT_SHARED);
             return 0;
@@ -505,11 +497,6 @@ int kfio_info_os_create_node(kfio_info_node_t *parent, kfio_info_node_t *nodep)
         }
     }
 
-    /*
-     * Entries of the top level directory are the only ones named after a
-     * device number, and so the only ones that can collide with another
-     * driver's.  Everything below them is already inside a directory of ours.
-     */
     create_name = node_name;
 
     if (parent != NULL && parent == fio_proc_root_node)
@@ -593,11 +580,6 @@ void kfio_info_os_remove_node(kfio_info_node_t *parent, kfio_info_node_t *nodep)
         parent_dir = NULL;
         kassert (node_type == KFIO_INFO_DIR);
 
-        /*
-         * A directory we only borrowed belongs to the driver that created it
-         * and is still using it.  Leave it alone; our own entries below it
-         * have already been removed by path.
-         */
         if (node_entry == FIO_PROC_ROOT_SHARED)
         {
             fio_proc_root_node = NULL;
@@ -606,13 +588,6 @@ void kfio_info_os_remove_node(kfio_info_node_t *parent, kfio_info_node_t *nodep)
 
         fio_proc_root_node = NULL;
 
-        /*
-         * We created the directory, but another generation of the driver may
-         * have borrowed it since, and it may still have entries in it.
-         * Removing a non-empty procfs directory leaks its children and the
-         * next load then collides recreating it, so only remove it when it is
-         * provably empty.
-         */
         if (!fio_enum_root_removable(fio_proc_root_name))
         {
             return;

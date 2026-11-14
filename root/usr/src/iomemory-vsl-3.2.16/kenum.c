@@ -1,15 +1,3 @@
-/*
-  Device enumeration for a namespace shared with another ioMemory driver.
-  See include/fio/port/common-linux/kenum.h for what this is for.
-
-  The driver object numbers cards from zero and formats the names from that
-  number before handing them to this porting layer.  Nothing here changes a
-  name: it only adds a base to the number inside one, and only when it can
-  reproduce the name it was given from the number the object also supplied.
-  Anything it does not recognise is passed through untouched, so an
-  unrecognised naming scheme costs coexistence, never a wrong device name.
- */
-
 #include "port-internal.h"
 
 #if !defined (__linux__)
@@ -20,10 +8,6 @@
 #include <linux/namei.h>
 #include <linux/string.h>
 #include <linux/fs.h>
-#include <linux/version.h>
-#if __has_include(<linux/kstrtox.h>)  /* split out of linux/kernel.h in 5.18 */
-#include <linux/kstrtox.h>
-#endif
 
 #include <fio/port/dbgset.h>
 #include <fio/port/common-linux/kenum.h>
@@ -62,10 +46,7 @@ int fio_enum_path_exists(const char *path)
     return 1;
 }
 
-/*
- * filldir_t returned int until 6.1 and bool from 6.1 on.
- */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+#if KFIOC_X_FILLDIR_RETURNS_BOOL
 # define FIO_FILLDIR_RET   bool
 # define FIO_FILLDIR_CONT  true
 #else
@@ -100,7 +81,7 @@ static FIO_FILLDIR_RET fio_enum_count_one(struct dir_context *ctx, const char *n
  *
  * procfs children exist as proc_dir_entry objects whether or not a dentry has
  * been instantiated, so this reads the directory rather than inspecting
- * dentries — which would wrongly report empty.
+ * dentries, which would wrongly report empty.
  */
 int fio_enum_dir_is_empty(const char *path)
 {
@@ -143,12 +124,6 @@ int fio_enum_root_removable(const char *proc_root)
         return 1;
     }
 
-    /*
-     * ⛔ Removing a non-empty procfs directory leaks its children ("removing
-     * non-empty directory ... leaking at least ...") and the next load then
-     * collides creating it again.  When in doubt, leave it: an empty directory
-     * left behind is harmless, and a later load simply shares it.
-     */
     if (empty == 0)
     {
         infprint("leaving /proc/%s in place: another ioMemory driver still has"
@@ -224,14 +199,9 @@ int fio_enum_resolve_base(const char *proc_root, int shared)
 
     if (!shared)
     {
-        /* We created /proc/<root>, so no other driver has registered there. */
         return fio_enum_base;
     }
 
-    /*
-     * Another driver already owns the directory.  Its cards are the ones
-     * numbered there now, because ours have not registered yet.
-     */
     for (i = 0; i < FIO_ENUM_MAX_PROBE; i++)
     {
         snprintf(path, sizeof(path), "/proc/%s/%s%d", proc_root,
@@ -336,8 +306,6 @@ const char *fio_enum_proc_name(const char *stock, char *buf, size_t buflen)
         return stock;
     }
 
-    /* Rejects a trailing or embedded non-digit, so "fio" and "version" and the
-     * like are left alone. */
     if (kstrtouint(stock + prefix_len, 10, &devnum) != 0)
     {
         return stock;
